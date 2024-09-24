@@ -36,3 +36,17 @@ for ax, col in zip(axes, df_scaled.columns):
     ax.axes.xaxis.set_visible(False)
 
 #plt.show()
+
+def create_sequence(data, window_size):
+    X = []
+    Y = []
+    for i in range(window_size, len(data)):
+        X.append(data.iloc[i-window_size:i].values)
+        Y.append(data.iloc[i].values)
+    return np.array(X), np.array(Y)
+
+window_size = 60
+X,Y = create_sequence(df_scaled, window_size)
+
+#print(X.shape, '\n', Y.shape)
+#print(X)
