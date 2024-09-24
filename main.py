@@ -50,3 +50,12 @@ X,Y = create_sequence(df_scaled, window_size)
 
 #print(X.shape, '\n', Y.shape)
 #print(X)
+
+X_train, X_test, Y_train, Y_test = train_test_split(X,Y, test_size = 0.2, random_state = 42)
+print(X_train.shape, X_test.shape)
+
+## Building LSTM Model
+model = keras.Sequential([
+    #First layer
+    keras.layers.LSTM(units = 50, return_sequence = False, input_shape = (X_train.shape[1], X_train.shape[2]))
+])
