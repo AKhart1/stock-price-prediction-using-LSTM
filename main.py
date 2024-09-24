@@ -26,3 +26,13 @@ scaler_values = scaler.fit_transform(df[df.columns])
 print(scaler_values)
 df_scaled = pd.DataFrame(scaler_values, columns=df.columns, index=df.index)
 print(df_scaled.head())
+
+plt.rcParams['figure.figsize'] = (20,20)
+figure, axes = plt.subplots(6)
+
+for ax, col in zip(axes, df_scaled.columns):
+    ax.plot(df_scaled[col])
+    ax.set_title(col)
+    ax.axes.xaxis.set_visible(False)
+
+#plt.show()
