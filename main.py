@@ -11,3 +11,10 @@ print(df.shape)
 print(df.head(), '\n')
 #Detect if some values are missing
 print(df.isna().sum())
+
+#Data Preprocessing
+
+df['Date'] = pd.to_datetime(df['Date'], utc=True)
+df.set_index('Date', inplace=True)
+print(df.info())
+print(df.head())
