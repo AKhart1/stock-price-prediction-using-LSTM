@@ -7,25 +7,25 @@ from tensorflow import keras
 
 
 df = pd.read_csv('NVidia_stock_history.csv')
-print(df.shape)
-print(df.head(), '\n')
-#Detect if some values are missing
-print(df.isna().sum())
+# print(df.shape)
+# print(df.head(), '\n')
+# print('Detect if some values are missing')
+# print(df.isna().sum(), '\n')
 
 #Data Preprocessing
 
 df['Date'] = pd.to_datetime(df['Date'], utc=True)
 df.set_index('Date', inplace=True)
-print(df.info())
-print(df.head())
+print(df.info(),'\n')
+# print(df.head(),'\n')
 
 df.sort_index(inplace=True)
 
 scaler = MinMaxScaler()
 scaler_values = scaler.fit_transform(df[df.columns])
-print(scaler_values)
 df_scaled = pd.DataFrame(scaler_values, columns=df.columns, index=df.index)
-print(df_scaled.head())
+print('Normalized dataset')
+print(df_scaled.head(),'\n')
 
 plt.rcParams['figure.figsize'] = (20,20)
 figure, axes = plt.subplots(6)
@@ -35,7 +35,7 @@ for ax, col in zip(axes, df_scaled.columns):
     ax.set_title(col)
     ax.axes.xaxis.set_visible(False)
 
-#plt.show()
+# plt.show()
 
 def create_sequence(data, window_size):
     X = []
@@ -48,14 +48,14 @@ def create_sequence(data, window_size):
 window_size = 60
 X,Y = create_sequence(df_scaled, window_size)
 
-#print(X.shape, '\n', Y.shape)
-#print(X)
-
 X_train, X_test, Y_train, Y_test = train_test_split(X,Y, test_size = 0.2, random_state = 42)
 print(X_train.shape, X_test.shape)
 
-## Building LSTM Model
+print(X_train.shape[1], X_train.shape[2])
+print('\nLSTM model:\n')
 model = keras.Sequential([
-    #First layer
-    keras.layers.LSTM(units = 50, return_sequence = False, input_shape = (X_train.shape[1], X_train.shape[2]))
+    keras.Input(shape=(X_train.shape[1], X_train.shape[2])),
+    keras.layers.LSTM(units=50, return_sequences=False)
 ])
+
+model.summary()
