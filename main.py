@@ -3,7 +3,8 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
-from tensorflow import keras 
+import tensorflow as tf 
+from keras.api.callbacks import EarlyStopping
 
 
 df = pd.read_csv('NVidia_stock_history.csv')
@@ -29,7 +30,6 @@ print(df_scaled.head(),'\n')
 
 plt.rcParams['figure.figsize'] = (20,20)
 figure, axes = plt.subplots(6)
-
 for ax, col in zip(axes, df_scaled.columns):
     ax.plot(df_scaled[col])
     ax.set_title(col)
@@ -53,9 +53,34 @@ print(X_train.shape, X_test.shape)
 
 print(X_train.shape[1], X_train.shape[2])
 print('\nLSTM model:\n')
+
+keras = tf.keras
 model = keras.Sequential([
+    #LSTM layers
     keras.Input(shape=(X_train.shape[1], X_train.shape[2])),
-    keras.layers.LSTM(units=50, return_sequences=False)
+    keras.layers.LSTM(units=50, return_sequences=True),
+    keras.layers.Dropout(0.3),
+    
+    keras.layers.LSTM(units=50, return_sequences=True),
+    keras.layers.Dropout(0.3),
+    
+    keras.layers.LSTM(units=50, return_sequences=False),
+    keras.layers.Dropout(0.3),
+    
+    keras.layers.Dense(Y_train.shape[1])
 ])
 
 model.summary()
+model.compile(optimizer='adam',
+              loss='mean_squared_error',
+              metrics=['RootMeanSquaredError'])
+
+early_stop = EarlyStopping(monitor='val_loss',
+                           patience=10,
+                           restore_best_weights=True)
+
+lstm_model = model.fit(X_train, Y_train,
+                       validation_split= 0.2,
+                       epochs=35,
+                       batch_size=3,
+                       callbacks=[early_stop])
