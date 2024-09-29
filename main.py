@@ -1,5 +1,7 @@
+from matplotlib import scale
 import pandas as pd
 import numpy as np
+from sklearn.metrics import PredictionErrorDisplay
 from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
@@ -81,6 +83,15 @@ early_stop = EarlyStopping(monitor='val_loss',
 
 lstm_model = model.fit(X_train, Y_train,
                        validation_split= 0.2,
-                       epochs=35,
-                       batch_size=3,
+                       epochs=30,
+                       batch_size=5,
                        callbacks=[early_stop])
+
+lstm_model.history
+
+predictions = model.predict(X_test)
+
+predictions = scaler.inverse_transform(predictions)
+y_test_rescaled = scaler.inverse_transform(Y_test)
+
+predictions[:10]
