@@ -1,3 +1,5 @@
+from sys import builtin_module_names
+from turtle import color
 from matplotlib import scale
 import pandas as pd
 import numpy as np
@@ -10,25 +12,38 @@ from keras.api.callbacks import EarlyStopping
 
 
 df = pd.read_csv('NVidia_stock_history.csv')
+df2 = pd.read_csv(filepath_or_buffer="NVDA.csv")
 # print(df.shape)
 # print(df.head(), '\n')
 # print('Detect if some values are missing')
 # print(df.isna().sum(), '\n')
 
 #Data Preprocessing
-
 df['Date'] = pd.to_datetime(df['Date'], utc=True)
-df.set_index('Date', inplace=True)
-print(df.info(),'\n')
+df2['Date'] = pd.to_datetime(arg=df2['Date'], utc=True)
+
+df_combined = pd.merge(df,df2[['Date','Adj Close']], on='Date', how='outer')
+df_combined.set_index('Date', inplace=True)
+
+print(df_combined.info(),'\n')
+print(df_combined.columns)
 # print(df.head(),'\n')
 
-df.sort_index(inplace=True)
+# Fill leading Nan's by using forward and backward fill
+# After make linear interpolation 
 
+df_combined['Adj Close'] = df_combined['Adj Close'].ffill().bfill()
+
+columns_to_scale = ['Open', 'High', 'Low', 'Close', 'Volume', 'Dividends', 'Stock Splits', 'Adj Close']
+df_combined.sort_index(inplace=True)
 scaler = MinMaxScaler()
-scaler_values = scaler.fit_transform(df[df.columns])
-df_scaled = pd.DataFrame(scaler_values, columns=df.columns, index=df.index)
+scaler_values = scaler.fit_transform(df_combined[columns_to_scale])
+df_scaled = pd.DataFrame(scaler_values, columns=columns_to_scale, index=df_combined.index)
+df_scaled = df_scaled.drop(columns=['Dividends','Stock Splits'])
+
 print('Normalized dataset')
 print(df_scaled.head(),'\n')
+print(df_scaled.describe())
 
 plt.rcParams['figure.figsize'] = (20,20)
 figure, axes = plt.subplots(6)
@@ -60,38 +75,53 @@ keras = tf.keras
 model = keras.Sequential([
     #LSTM layers
     keras.Input(shape=(X_train.shape[1], X_train.shape[2])),
-    keras.layers.LSTM(units=50, return_sequences=True),
+    keras.layers.LSTM(units=30, return_sequences=True),
     keras.layers.Dropout(0.3),
     
-    keras.layers.LSTM(units=50, return_sequences=True),
+    keras.layers.LSTM(units=30, return_sequences=True),
     keras.layers.Dropout(0.3),
     
-    keras.layers.LSTM(units=50, return_sequences=False),
+    keras.layers.LSTM(units=30, return_sequences=False),
     keras.layers.Dropout(0.3),
     
     keras.layers.Dense(Y_train.shape[1])
 ])
 
 model.summary()
-model.compile(optimizer='adam',
-              loss='mean_squared_error',
-              metrics=['RootMeanSquaredError'])
+# model.compile(optimizer='adam',
+#               loss='mean_squared_error',
+#               metrics=['RootMeanSquaredError'])
 
-early_stop = EarlyStopping(monitor='val_loss',
-                           patience=10,
-                           restore_best_weights=True)
+# early_stop = EarlyStopping(monitor='val_loss',
+#                            patience=5,
+#                            restore_best_weights=True)
 
-lstm_model = model.fit(X_train, Y_train,
-                       validation_split= 0.2,
-                       epochs=30,
-                       batch_size=5,
-                       callbacks=[early_stop])
+# lstm_model = model.fit(X_train, Y_train,
+#                        validation_split= 0.2,
+#                        epochs=50,
+#                        batch_size=15,
+#                        callbacks=[early_stop])
 
-lstm_model.history
+# print(lstm_model.history)
 
-predictions = model.predict(X_test)
+# predictions = model.predict(X_test)
 
-predictions = scaler.inverse_transform(predictions)
-y_test_rescaled = scaler.inverse_transform(Y_test)
+# predictions = scaler.inverse_transform(predictions)
+# y_test_rescaled = scaler.inverse_transform(Y_test)
 
-predictions[:10]
+# print(predictions[:10])
+
+#Plotting the results
+# plt.figure(figsize= (14, 7))
+
+# for i, column in enumerate(df_scaled.columns):
+#     plt.subplot(3,3, i+1)
+#     plt.plot(y_test_rescaled[:,i], color='blue', label=f'Actual {column}')
+#     plt.plot(predictions[:, i], color='red', label=f'Predicted {column}')
+#     plt.title(f'{column} Prediction')
+#     plt.xlabel('Time')
+#     plt.ylabel(f'{column} price')
+#     plt.legend()
+    
+# plt.tight_layout()
+# plt.show()
