@@ -1,20 +1,22 @@
-from sys import builtin_module_names
+import os
+from subprocess import check_output 
+import numpy as np
+import pandas as pd
+import tensorflow as tf 
 from turtle import color
 from matplotlib import scale
-import pandas as pd
-import numpy as np
-from sklearn.metrics import PredictionErrorDisplay
-from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
-import tensorflow as tf 
+from sys import builtin_module_names
 from keras.api.callbacks import EarlyStopping
-
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import PredictionErrorDisplay
+from keras.src.saving.saving_api import load_model
+from sklearn.model_selection import train_test_split
+from keras.src.callbacks.model_checkpoint import ModelCheckpoint
 
 df = pd.read_csv('NVidia_stock_history.csv')
 df2 = pd.read_csv(filepath_or_buffer="NVDA.csv")
 # print(df.shape)
-# print(df.head(), '\n')
 # print('Detect if some values are missing')
 # print(df.isna().sum(), '\n')
 
@@ -26,7 +28,7 @@ df_combined = pd.merge(df,df2[['Date','Adj Close']], on='Date', how='outer')
 df_combined.set_index('Date', inplace=True)
 
 print(df_combined.info(),'\n')
-print(df_combined.columns)
+# print(df_combined.columns)
 # print(df.head(),'\n')
 
 # Fill leading Nan's by using forward and backward fill
@@ -52,8 +54,6 @@ for ax, col in zip(axes, df_scaled.columns):
     ax.set_title(col)
     ax.axes.xaxis.set_visible(False)
 
-# plt.show()
-
 def create_sequence(data, window_size):
     X = []
     Y = []
@@ -72,7 +72,15 @@ print(X_train.shape[1], X_train.shape[2])
 print('\nLSTM model:\n')
 
 keras = tf.keras
-model = keras.Sequential([
+model_path = 'model_checkpoint.keras'   
+
+if os.path.exists(model_path):
+    print("Loaded model from checkpoint")
+    model = load_model(model_path)
+else:
+    print("\nNo checkpoint found, training a new model.\n")
+    print("Creating a new model")
+    model = keras.Sequential([
     #LSTM layers
     keras.Input(shape=(X_train.shape[1], X_train.shape[2])),
     keras.layers.LSTM(units=30, return_sequences=True),
@@ -85,43 +93,54 @@ model = keras.Sequential([
     keras.layers.Dropout(0.3),
     
     keras.layers.Dense(Y_train.shape[1])
-])
+    ])
+    model.summary()
+    model.compile(optimizer='adam',
+              loss='mean_squared_error',
+              metrics=['RootMeanSquaredError'])
 
-model.summary()
-# model.compile(optimizer='adam',
-#               loss='mean_squared_error',
-#               metrics=['RootMeanSquaredError'])
+checkpoint_callback = ModelCheckpoint(
+    filepath = model_path,
+    save_best_only = True,
+    monitor = 'val_loss',
+    mode = 'min',
+    save_freq = "epoch",
+    verbose = 1
+)
 
-# early_stop = EarlyStopping(monitor='val_loss',
-#                            patience=5,
-#                            restore_best_weights=True)
+early_stop = EarlyStopping(monitor='val_loss',
+                           patience=5,
+                           restore_best_weights=True)
 
-# lstm_model = model.fit(X_train, Y_train,
-#                        validation_split= 0.2,
-#                        epochs=50,
-#                        batch_size=15,
-#                        callbacks=[early_stop])
+lstm_model = model.fit(X_train, Y_train,
+                       validation_split= 0.2,
+                       epochs=50,
+                       batch_size=15,
+                       callbacks=[early_stop, checkpoint_callback])
 
 # print(lstm_model.history)
+model.save(model_path)
+print("Model saved.")
 
-# predictions = model.predict(X_test)
+predictions = model.predict(X_test)
 
-# predictions = scaler.inverse_transform(predictions)
-# y_test_rescaled = scaler.inverse_transform(Y_test)
+# Rescale predictions and test values to the original values
+predictions = scaler.inverse_transform(predictions)
+y_test_rescaled = scaler.inverse_transform(Y_test)
 
-# print(predictions[:10])
+print(predictions[:10])
 
-#Plotting the results
-# plt.figure(figsize= (14, 7))
+# Plotting the results
+plt.figure(figsize= (14, 7))
 
-# for i, column in enumerate(df_scaled.columns):
-#     plt.subplot(3,3, i+1)
-#     plt.plot(y_test_rescaled[:,i], color='blue', label=f'Actual {column}')
-#     plt.plot(predictions[:, i], color='red', label=f'Predicted {column}')
-#     plt.title(f'{column} Prediction')
-#     plt.xlabel('Time')
-#     plt.ylabel(f'{column} price')
-#     plt.legend()
+for i, column in enumerate(df_scaled.columns):
+    plt.subplot(3,3, i+1)
+    plt.plot(y_test_rescaled[:,i], color='blue', label=f'Actual {column}')
+    plt.plot(predictions[:, i], color='red', label=f'Predicted {column}')
+    plt.title(f'{column} Prediction')
+    plt.xlabel('Time')
+    plt.ylabel(f'{column} price')
+    plt.legend()
     
-# plt.tight_layout()
-# plt.show()
+plt.tight_layout()
+plt.show()
