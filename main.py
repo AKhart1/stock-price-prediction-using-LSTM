@@ -1,3 +1,4 @@
+from codecs import ignore_errors
 import os
 from subprocess import check_output 
 import numpy as np
@@ -15,37 +16,25 @@ from sklearn.model_selection import train_test_split
 from keras.src.callbacks.model_checkpoint import ModelCheckpoint
 
 df = pd.read_csv('NVidia_stock_history.csv')
-df2 = pd.read_csv(filepath_or_buffer="NVDA.csv")
-# print(df.shape)
-# print('Detect if some values are missing')
-# print(df.isna().sum(), '\n')
 
-#Data Preprocessing
+# Data Preprocessing
 df['Date'] = pd.to_datetime(df['Date'], utc=True)
-df2['Date'] = pd.to_datetime(arg=df2['Date'], utc=True)
+df.set_index('Date', inplace=True)
 
-df_combined = pd.merge(df,df2[['Date','Adj Close']], on='Date', how='outer')
-df_combined.set_index('Date', inplace=True)
+print(df.info(),'\n')
+# Check for NaN's values
+print(df.isna().sum())
+print('Dataset \t\t\n[Columns]\n', df.columns)
+print('Dataset \t\t\n[Head]\n', df.head())
 
-print(df_combined.info(),'\n')
-# print(df_combined.columns)
-# print(df.head(),'\n')
-
-# Fill leading Nan's by using forward and backward fill
-# After make linear interpolation 
-
-df_combined['Adj Close'] = df_combined['Adj Close'].ffill().bfill()
-
-columns_to_scale = ['Open', 'High', 'Low', 'Close', 'Volume', 'Dividends', 'Stock Splits', 'Adj Close']
-df_combined.sort_index(inplace=True)
+df.sort_index(inplace=True)
 scaler = MinMaxScaler()
-scaler_values = scaler.fit_transform(df_combined[columns_to_scale])
-df_scaled = pd.DataFrame(scaler_values, columns=columns_to_scale, index=df_combined.index)
-df_scaled = df_scaled.drop(columns=['Dividends','Stock Splits'])
+scaler_values = scaler.fit_transform(df[df.columns])
+df_scaled = pd.DataFrame(scaler_values, columns=df.columns, index=df.index)
 
-print('Normalized dataset')
+print('\nNormalized dataset\n')
 print(df_scaled.head(),'\n')
-print(df_scaled.describe())
+print(df_scaled.describe(),'\n')
 
 plt.rcParams['figure.figsize'] = (20,20)
 figure, axes = plt.subplots(6)
@@ -70,6 +59,11 @@ print(X_train.shape, X_test.shape)
 
 print(X_train.shape[1], X_train.shape[2])
 print('\nLSTM model:\n')
+
+print("Check for Nan Values in Input data:")
+print("Any Nan's in training data: ", np.isnan(X_train).sum())
+print("Any Nan's in target data: ", np.isnan(Y_train).sum())
+print(df_scaled.isna().sum())
 
 keras = tf.keras
 model_path = 'model_checkpoint.keras'   
@@ -128,7 +122,7 @@ predictions = model.predict(X_test)
 predictions = scaler.inverse_transform(predictions)
 y_test_rescaled = scaler.inverse_transform(Y_test)
 
-print(predictions[:10])
+print('\n\tPredicitons: ',predictions[:6])
 
 # Plotting the results
 plt.figure(figsize= (14, 7))
