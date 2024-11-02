@@ -14,6 +14,7 @@ from sklearn.metrics import PredictionErrorDisplay
 from keras.src.saving.saving_api import load_model
 from sklearn.model_selection import train_test_split
 from keras.src.callbacks.model_checkpoint import ModelCheckpoint
+from keras.src.callbacks.reduce_lr_on_plateau import ReduceLROnPlateau
 
 df = pd.read_csv('NVidia_stock_history.csv')
 
@@ -77,13 +78,13 @@ else:
     model = keras.Sequential([
         #LSTM layers
         keras.Input(shape=(X_train.shape[1], X_train.shape[2])),
-        keras.layers.LSTM(units=50, return_sequences=True),
+        keras.layers.LSTM(units=30, return_sequences=True),
         keras.layers.Dropout(0.2),
     
-        keras.layers.LSTM(units=50, return_sequences=True),
+        keras.layers.LSTM(units=30, return_sequences=True),
         keras.layers.Dropout(0.2),
     
-        keras.layers.LSTM(units=50, return_sequences=False),
+        keras.layers.LSTM(units=30, return_sequences=False),
         keras.layers.Dropout(0.2),
     
         keras.layers.Dense(Y_train.shape[1])
@@ -96,38 +97,67 @@ else:
         metrics=['RootMeanSquaredError','MeanAbsoluteError','MeanAbsolutePercentageError'])
 
 checkpoint_callback = ModelCheckpoint(
-    filepath = model_path,
-    save_best_only = True,
-    monitor = 'val_loss',
-    mode = 'min',
-    save_freq = "epoch",
-    verbose = 1)
+                        filepath = model_path,
+                        save_best_only = True,
+                        monitor = 'val_loss',
+                        mode = 'min',
+                        save_freq = "epoch",
+                        verbose = 1)
 
 early_stop = EarlyStopping(
-    monitor='val_loss',
-    patience=10,
-    restore_best_weights=True)
+                        monitor='val_loss',
+                        patience=10,
+                        restore_best_weights=True)
+
+scheduler = ReduceLROnPlateau(
+                        monitor='val_loss',
+                        factor=0.5,
+                        patience=5,
+                        verbose=1,
+                        min_lr=1e-5
+)
 
 lstm_model = model.fit(
                         X_train, Y_train,
                         validation_split= 0.2,
                         epochs=50,
-                        batch_size=20,
-                        callbacks=[early_stop, checkpoint_callback])
+                        batch_size=16,
+                        callbacks=[early_stop, checkpoint_callback, scheduler])
 
-print(lstm_model.history)
 model.save(model_path)
 print("Model saved.")
 
+# Make a predictions
 predictions = model.predict(X_test)
 
 # Rescale predictions and test values to the original values
 predictions = scaler.inverse_transform(predictions)
 y_test_rescaled = scaler.inverse_transform(Y_test)
 
-# print('\n\tPredicitons: ',predictions[:6])
+# Convert to actual values 
+predictions_df = pd.DataFrame(
+    data= predictions[:,3],
+    index= df_scaled.index[-len(predictions):],
+    columns= ['Predicted']
+)
 
-# Plotting the results
+comparison_df = pd.DataFrame({
+    'Date': predictions_df.index,
+    'Predicted[CL]': predictions_df['Predicted'],
+    'Actual': y_test_rescaled[:,0],
+    'Difference [%]': (y_test_rescaled[:,0]/predictions_df['Predicted'])*100
+}).set_index('Date')
+print(comparison_df.head())
+
+# Plot training and validation loss
+plt.plot(lstm_model.history['loss'], label='Training loss')
+plt.plot(lstm_model.history['val_loss'], label='Validation loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
+plt.show()  
+    
+# Plot the results
 plt.figure(figsize= (14, 7))
 
 for i, column in enumerate(df_scaled.columns):
