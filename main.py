@@ -51,7 +51,7 @@ def create_sequence(data, window_size):
         Y.append(data.iloc[i].values)
     return np.array(X), np.array(Y)
 
-window_size = 60
+window_size = 50
 X,Y = create_sequence(df_scaled, window_size)
 
 X_train, X_test, Y_train, Y_test = train_test_split(X,Y, test_size = 0.2, random_state = 42)
@@ -70,28 +70,30 @@ model_path = 'model_checkpoint.keras'
 
 if os.path.exists(model_path):
     print("Loaded model from checkpoint")
+    
     model = load_model(model_path)
 else:
     print("\nNo checkpoint found, training a new model.\n")
-    print("Creating a new model")
     model = keras.Sequential([
-    #LSTM layers
-    keras.Input(shape=(X_train.shape[1], X_train.shape[2])),
-    keras.layers.LSTM(units=30, return_sequences=True),
-    keras.layers.Dropout(0.3),
+        #LSTM layers
+        keras.Input(shape=(X_train.shape[1], X_train.shape[2])),
+        keras.layers.LSTM(units=50, return_sequences=True),
+        keras.layers.Dropout(0.2),
     
-    keras.layers.LSTM(units=30, return_sequences=True),
-    keras.layers.Dropout(0.3),
+        keras.layers.LSTM(units=50, return_sequences=True),
+        keras.layers.Dropout(0.2),
     
-    keras.layers.LSTM(units=30, return_sequences=False),
-    keras.layers.Dropout(0.3),
+        keras.layers.LSTM(units=50, return_sequences=False),
+        keras.layers.Dropout(0.2),
     
-    keras.layers.Dense(Y_train.shape[1])
+        keras.layers.Dense(Y_train.shape[1])
     ])
+    
     model.summary()
-    model.compile(optimizer='adam',
-              loss='mean_squared_error',
-              metrics=['RootMeanSquaredError'])
+    model.compile(
+        optimizer='adam',
+        loss='mean_squared_error',
+        metrics=['RootMeanSquaredError','MeanAbsoluteError','MeanAbsolutePercentageError'])
 
 checkpoint_callback = ModelCheckpoint(
     filepath = model_path,
@@ -99,20 +101,21 @@ checkpoint_callback = ModelCheckpoint(
     monitor = 'val_loss',
     mode = 'min',
     save_freq = "epoch",
-    verbose = 1
-)
+    verbose = 1)
 
-early_stop = EarlyStopping(monitor='val_loss',
-                           patience=5,
-                           restore_best_weights=True)
+early_stop = EarlyStopping(
+    monitor='val_loss',
+    patience=10,
+    restore_best_weights=True)
 
-lstm_model = model.fit(X_train, Y_train,
-                       validation_split= 0.2,
-                       epochs=50,
-                       batch_size=15,
-                       callbacks=[early_stop, checkpoint_callback])
+lstm_model = model.fit(
+                        X_train, Y_train,
+                        validation_split= 0.2,
+                        epochs=50,
+                        batch_size=20,
+                        callbacks=[early_stop, checkpoint_callback])
 
-# print(lstm_model.history)
+print(lstm_model.history)
 model.save(model_path)
 print("Model saved.")
 
@@ -122,7 +125,7 @@ predictions = model.predict(X_test)
 predictions = scaler.inverse_transform(predictions)
 y_test_rescaled = scaler.inverse_transform(Y_test)
 
-print('\n\tPredicitons: ',predictions[:6])
+# print('\n\tPredicitons: ',predictions[:6])
 
 # Plotting the results
 plt.figure(figsize= (14, 7))
