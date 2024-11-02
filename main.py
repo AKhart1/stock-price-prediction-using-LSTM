@@ -78,14 +78,14 @@ else:
     model = keras.Sequential([
         #LSTM layers
         keras.Input(shape=(X_train.shape[1], X_train.shape[2])),
-        keras.layers.LSTM(units=30, return_sequences=True),
-        keras.layers.Dropout(0.2),
+        keras.layers.LSTM(units=50, return_sequences=True),
+        keras.layers.Dropout(0.3),
     
-        keras.layers.LSTM(units=30, return_sequences=True),
-        keras.layers.Dropout(0.2),
+        keras.layers.LSTM(units=50, return_sequences=True),
+        keras.layers.Dropout(0.3),
     
-        keras.layers.LSTM(units=30, return_sequences=False),
-        keras.layers.Dropout(0.2),
+        keras.layers.LSTM(units=50, return_sequences=False),
+        keras.layers.Dropout(0.3),
     
         keras.layers.Dense(Y_train.shape[1])
     ])
@@ -111,7 +111,7 @@ early_stop = EarlyStopping(
 
 scheduler = ReduceLROnPlateau(
                         monitor='val_loss',
-                        factor=0.5,
+                        factor=0.2,
                         patience=5,
                         verbose=1,
                         min_lr=1e-5
@@ -121,7 +121,7 @@ lstm_model = model.fit(
                         X_train, Y_train,
                         validation_split= 0.2,
                         epochs=50,
-                        batch_size=16,
+                        batch_size=32,
                         callbacks=[early_stop, checkpoint_callback, scheduler])
 
 model.save(model_path)
@@ -145,7 +145,8 @@ comparison_df = pd.DataFrame({
     'Date': predictions_df.index,
     'Predicted[CL]': predictions_df['Predicted'],
     'Actual': y_test_rescaled[:,0],
-    'Difference [%]': (y_test_rescaled[:,0]/predictions_df['Predicted'])*100
+    'Difference [%]': (abs(predictions_df['Predicted'] - y_test_rescaled[:,0]) / y_test_rescaled[:,0]) * 100
+
 }).set_index('Date')
 print(comparison_df.head())
 
