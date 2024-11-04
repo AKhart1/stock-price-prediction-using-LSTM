@@ -1,6 +1,7 @@
 from codecs import ignore_errors
 import os
 from subprocess import check_output 
+from keras.api import callbacks
 import numpy as np
 import pandas as pd
 import tensorflow as tf 
@@ -15,6 +16,24 @@ from keras.src.saving.saving_api import load_model
 from sklearn.model_selection import train_test_split
 from keras.src.callbacks.model_checkpoint import ModelCheckpoint
 from keras.src.callbacks.reduce_lr_on_plateau import ReduceLROnPlateau
+from keras.src.callbacks.callback import Callback
+
+class CustomConsoleOutput(Callback):
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
+        train_mae = logs.get('mae', logs.get('mean_absolute_error', 0))
+        train_rmse = logs.get('rmse', logs.get('root_mean_squared_error', 0))
+        val_mae = logs.get('val_mae', logs.get('val_mean_absolute_error', 0))
+        val_rmse = logs.get('val_rmse', logs.get('val_root_mean_squared_error', 0))
+        
+        lr = self.model.optimizer.lr.numpy() if hasattr(self.model.optimizer, 'lr') else 0
+
+        print(f"\nEpoch {epoch + 1:02d} | "
+              f"Train MAE: {train_mae:.4f} | "
+              f"Train RMSE: {train_rmse:.4f} | "
+              f"Val MAE: {val_mae:.4f} | "
+              f"Val RMSE: {val_rmse:.4f} | "
+              f"LR: {lr:.1e}\n")
 
 df = pd.read_csv('NVidia_stock_history.csv')
 
@@ -52,7 +71,8 @@ def create_sequence(data, window_size):
         Y.append(data.iloc[i].values)
     return np.array(X), np.array(Y)
 
-window_size = 50
+#
+window_size = 90
 X,Y = create_sequence(df_scaled, window_size)
 
 X_train, X_test, Y_train, Y_test = train_test_split(X,Y, test_size = 0.2, random_state = 42)
@@ -78,14 +98,14 @@ else:
     model = keras.Sequential([
         #LSTM layers
         keras.Input(shape=(X_train.shape[1], X_train.shape[2])),
-        keras.layers.LSTM(units=50, return_sequences=True),
-        keras.layers.Dropout(0.3),
+        keras.layers.LSTM(units=100, return_sequences=True),
+        keras.layers.Dropout(0.2),
     
-        keras.layers.LSTM(units=50, return_sequences=True),
-        keras.layers.Dropout(0.3),
+        keras.layers.LSTM(units=100, return_sequences=True),
+        keras.layers.Dropout(0.2),
     
-        keras.layers.LSTM(units=50, return_sequences=False),
-        keras.layers.Dropout(0.3),
+        keras.layers.LSTM(units=100, return_sequences=False),
+        keras.layers.Dropout(0.2),
     
         keras.layers.Dense(Y_train.shape[1])
     ])
@@ -106,7 +126,7 @@ checkpoint_callback = ModelCheckpoint(
 
 early_stop = EarlyStopping(
                         monitor='val_loss',
-                        patience=10,
+                        patience=20,
                         restore_best_weights=True)
 
 scheduler = ReduceLROnPlateau(
@@ -114,15 +134,16 @@ scheduler = ReduceLROnPlateau(
                         factor=0.2,
                         patience=5,
                         verbose=1,
-                        min_lr=1e-5
+                        min_lr=1e-5,
+                        mode='auto'
 )
 
 lstm_model = model.fit(
                         X_train, Y_train,
                         validation_split= 0.2,
                         epochs=50,
-                        batch_size=32,
-                        callbacks=[early_stop, checkpoint_callback, scheduler])
+                        batch_size=16,
+                        callbacks=[early_stop, checkpoint_callback, scheduler, CustomConsoleOutput()])
 
 model.save(model_path)
 print("Model saved.")
