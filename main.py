@@ -1,4 +1,5 @@
 from codecs import ignore_errors
+from colorama import init
 import os
 from subprocess import check_output 
 from keras.api import callbacks
@@ -18,22 +19,34 @@ from keras.src.callbacks.model_checkpoint import ModelCheckpoint
 from keras.src.callbacks.reduce_lr_on_plateau import ReduceLROnPlateau
 from keras.src.callbacks.callback import Callback
 
+class Colors: 
+    FAIL = '\033[91m'
+    WARNING = '\033[93m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    END_RESET = '\033[0m'
+
 class CustomConsoleOutput(Callback):
+    init(autoreset=True)
+    
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
-        train_mae = logs.get('mae', logs.get('mean_absolute_error', 0))
-        train_rmse = logs.get('rmse', logs.get('root_mean_squared_error', 0))
-        val_mae = logs.get('val_mae', logs.get('val_mean_absolute_error', 0))
-        val_rmse = logs.get('val_rmse', logs.get('val_root_mean_squared_error', 0))
+          
+        train_mae = logs.get('mae', logs.get('MeanAbsoluteError', 0))
+        train_rmse = logs.get('rmse', logs.get('RootMeanSquaredError', 0))
+        val_mae = logs.get('val_mae', logs.get('val_MeanAbsoluteError', 0))
+        val_rmse = logs.get('val_rmse', logs.get('val_RootMeanSquaredError', 0))
+        loss = logs.get('loss', logs.get('loss', 0))
         
         lr = self.model.optimizer.lr.numpy() if hasattr(self.model.optimizer, 'lr') else 0
 
-        print(f"\nEpoch {epoch + 1:02d} | "
-              f"Train MAE: {train_mae:.4f} | "
-              f"Train RMSE: {train_rmse:.4f} | "
-              f"Val MAE: {val_mae:.4f} | "
-              f"Val RMSE: {val_rmse:.4f} | "
-              f"LR: {lr:.1e}\n")
+        print(f"\n{Colors.OKBLUE}Epoch {epoch + 1:02d}{Colors.END_RESET} | "
+              f"Train MAE: {Colors.OKGREEN}{train_mae:.4f}{Colors.END_RESET} | "
+              f"Train RMSE: {Colors.OKGREEN}{train_rmse:.4f}{Colors.END_RESET} | "
+              f"Val MAE: {Colors.OKGREEN}{val_mae:.4f}{Colors.END_RESET} | "
+              f"Val RMSE: {Colors.OKGREEN}{val_rmse:.4f}{Colors.END_RESET} | "
+              f"Loss: {Colors.OKGREEN}{loss:.4f}{Colors.END_RESET} | "
+              f"LR: {Colors.OKGREEN}{lr:.1e}{Colors.END_RESET}\n")
 
 df = pd.read_csv('NVidia_stock_history.csv')
 
@@ -72,7 +85,7 @@ def create_sequence(data, window_size):
     return np.array(X), np.array(Y)
 
 #
-window_size = 90
+window_size = 100
 X,Y = create_sequence(df_scaled, window_size)
 
 X_train, X_test, Y_train, Y_test = train_test_split(X,Y, test_size = 0.2, random_state = 42)
