@@ -1,4 +1,5 @@
 import os
+import blpapi
 import numpy as np
 import pandas as pd
 import tensorflow as tf 
@@ -21,19 +22,18 @@ from keras.src.callbacks.reduce_lr_on_plateau import ReduceLROnPlateau
 from datetime import datetime
 import yfinance as yF
 
-class Colors: 
-    FAIL = '\033[91m'
-    WARNING = '\033[93m'
+class Colors:
     OKBLUE = '\033[94m'
     OKGREEN = '\033[92m'
     END_RESET = '\033[0m'
 
 class CustomConsoleOutput(Callback):
-    init(autoreset=True)
+    def __init__(self):
+        super().__init__()
     
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
-          
+        
         train_mae = logs.get('mae', logs.get('MeanAbsoluteError', 0))
         train_rmse = logs.get('rmse', logs.get('RootMeanSquaredError', 0))
         val_mae = logs.get('val_mae', logs.get('val_MeanAbsoluteError', 0))
@@ -42,7 +42,7 @@ class CustomConsoleOutput(Callback):
         
         lr = self.model.optimizer.lr.numpy() if hasattr(self.model.optimizer, 'lr') else 0
 
-        print(f"\n{Colors.OKBLUE}Epoch {epoch + 1:02d}{Colors.END_RESET} | "
+        print(f"\r{Colors.OKBLUE}Epoch {epoch + 1:02d}{Colors.END_RESET} | "
               f"Train MAE: {Colors.OKGREEN}{train_mae:.4f}{Colors.END_RESET} | "
               f"Train RMSE: {Colors.OKGREEN}{train_rmse:.4f}{Colors.END_RESET} | "
               f"Val MAE: {Colors.OKGREEN}{val_mae:.4f}{Colors.END_RESET} | "
@@ -50,7 +50,10 @@ class CustomConsoleOutput(Callback):
               f"Loss: {Colors.OKGREEN}{loss:.4f}{Colors.END_RESET} | "
               f"LR: {Colors.OKGREEN}{lr:.1e}{Colors.END_RESET}\n")
 
-# Data Preprocessing
+
+# # LSTM model
+
+# # Data Preprocessing
 df = pd.read_csv('NVidia_stock_history.csv')
 df['Date'] = pd.to_datetime(df['Date'], utc=True)
 df.set_index('Date', inplace=True)
@@ -61,6 +64,7 @@ print(f'\t\t\nLatest date in datset: {latest_date}\t\t\n')
 start_date = (latest_date + pd.Timedelta(days=1)).date()
 today = datetime.now().date()
 
+# Updating dataSet with Yahoo API
 if start_date <= today:
     print(f"Fetching data from {start_date} to {today}")
     
@@ -98,8 +102,8 @@ else:
 print(df.info(),'\n')
 # Check for NaN's values
 print(df.isna().sum())
-print('Dataset \t\t\n[Columns]\n', df.columns)
-print('Dataset \t\t\n[Head]\n', df.head())
+# print('Dataset \t\t\n[Columns]\n', df.columns)
+# print('Dataset \t\t\n[Head]\n', df.head())
 
 df.sort_index(inplace=True)
 scaler = MinMaxScaler()
@@ -108,7 +112,7 @@ df_scaled = pd.DataFrame(scaler_values, columns=df.columns, index=df.index)
 
 print('\nNormalized dataset\n')
 print(df_scaled.head(),'\n')
-print(df_scaled.describe(),'\n')
+# print(df_scaled.describe(),'\n')
 
 plt.rcParams['figure.figsize'] = (20,20)
 figure, axes = plt.subplots(6)
@@ -125,8 +129,7 @@ def create_sequence(data, window_size):
         Y.append(data.iloc[i].values)
     return np.array(X), np.array(Y)
 
-#
-window_size = 100
+window_size = 150
 X,Y = create_sequence(df_scaled, window_size)
 
 X_train, X_test, Y_train, Y_test = train_test_split(X,Y, test_size = 0.2, random_state = 42)
@@ -138,7 +141,7 @@ print('\nLSTM model:\n')
 print("Check for Nan Values in Input data:")
 print("Any Nan's in training data: ", np.isnan(X_train).sum())
 print("Any Nan's in target data: ", np.isnan(Y_train).sum())
-print(df_scaled.isna().sum())
+# print(df_scaled.isna().sum())
 
 keras = tf.keras
 model_path = 'model_checkpoint.keras'   
@@ -152,14 +155,14 @@ else:
     model = keras.Sequential([
         #LSTM layers
         keras.Input(shape=(X_train.shape[1], X_train.shape[2])),
-        keras.layers.LSTM(units=100, return_sequences=True),
-        keras.layers.Dropout(0.2),
+        keras.layers.LSTM(units=70, return_sequences=True),
+        keras.layers.Dropout(0.3),
     
-        keras.layers.LSTM(units=100, return_sequences=True),
-        keras.layers.Dropout(0.2),
-    
-        keras.layers.LSTM(units=100, return_sequences=False),
-        keras.layers.Dropout(0.2),
+        keras.layers.LSTM(units=70, return_sequences=True),
+        keras.layers.Dropout(0.3),    
+        
+        keras.layers.LSTM(units=70, return_sequences=False),
+        keras.layers.Dropout(0.3),
     
         keras.layers.Dense(Y_train.shape[1])
     ])
@@ -169,19 +172,16 @@ else:
         optimizer='adam',
         loss='mean_squared_error',
         metrics=['RootMeanSquaredError','MeanAbsoluteError','MeanAbsolutePercentageError'])
+    
+early_stop = EarlyStopping(
+                        monitor='val_loss',
+                        patience=15,
+                        restore_best_weights=True)    
 
 checkpoint_callback = ModelCheckpoint(
                         filepath = model_path,
                         save_best_only = True,
-                        monitor = 'val_loss',
-                        mode = 'min',
-                        save_freq = "epoch",
-                        verbose = 1)
-
-early_stop = EarlyStopping(
-                        monitor='val_loss',
-                        patience=20,
-                        restore_best_weights=True)
+                        monitor = 'val_loss')
 
 scheduler = ReduceLROnPlateau(
                         monitor='val_loss',
@@ -195,21 +195,21 @@ scheduler = ReduceLROnPlateau(
 lstm_model = model.fit(
                         X_train, Y_train,
                         validation_split= 0.2,
-                        epochs=50,
-                        batch_size=16,
+                        epochs=20,
+                        batch_size=32,
                         callbacks=[early_stop, checkpoint_callback, scheduler, CustomConsoleOutput()])
 
 model.save(model_path)
 print("Model saved.")
 
-# Make a predictions
+# # Make a predictions
 predictions = model.predict(X_test)
 
-# Rescale predictions and test values to the original values
+# # Rescale predictions and test values to the original values
 predictions = scaler.inverse_transform(predictions)
 y_test_rescaled = scaler.inverse_transform(Y_test)
 
-# Convert to actual values 
+# # Convert to actual values 
 predictions_df = pd.DataFrame(
     data= predictions[:,3],
     index= df_scaled.index[-len(predictions):],
@@ -225,7 +225,7 @@ comparison_df = pd.DataFrame({
 }).set_index('Date')
 print(comparison_df.head())
 
-# Plot training and validation loss
+# # Plot training and validation loss
 plt.plot(lstm_model.history['loss'], label='Training loss')
 plt.plot(lstm_model.history['val_loss'], label='Validation loss')
 plt.xlabel('Epochs')
@@ -233,7 +233,7 @@ plt.ylabel('Loss')
 plt.legend()
 plt.show()  
     
-# Plot the results
+# # Plot the results
 plt.figure(figsize= (14, 7))
 
 for i, column in enumerate(df_scaled.columns):
