@@ -21,6 +21,7 @@ from keras.src.callbacks.model_checkpoint import ModelCheckpoint
 from keras.src.callbacks.reduce_lr_on_plateau import ReduceLROnPlateau
 from datetime import datetime
 import yfinance as yF
+import random
 
 class Colors:
     OKBLUE = '\033[94m'
@@ -202,17 +203,29 @@ lstm_model = model.fit(
 model.save(model_path)
 print("Model saved.")
 
-# # Make a predictions
-predictions = model.predict(X_test)
+# Function to select a random year for predictions
+def get_random_year(df):
+    years = df.index.year.unique()
+    return random.choice(years)
 
-# # Rescale predictions and test values to the original values
+# # Make predictions
+random_year = get_random_year(df_scaled)
+print(f"Making predictions for the year: {random_year}")
+
+# Filter test data for the selected year
+X_test_year = X_test[df_scaled.index.year == random_year]
+Y_test_year = Y_test[df_scaled.index.year == random_year]
+
+predictions = model.predict(X_test_year)
+
+# Rescale predictions and test values to the original values
 predictions = scaler.inverse_transform(predictions)
-y_test_rescaled = scaler.inverse_transform(Y_test)
+y_test_rescaled = scaler.inverse_transform(Y_test_year)
 
-# # Convert to actual values 
+# Convert to actual values 
 predictions_df = pd.DataFrame(
     data= predictions[:,3],
-    index= df_scaled.index[-len(predictions):],
+    index= df_scaled[df_scaled.index.year == random_year].index,
     columns= ['Predicted']
 )
 
