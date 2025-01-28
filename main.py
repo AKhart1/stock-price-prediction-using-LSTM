@@ -1,5 +1,4 @@
 import os
-import blpapi
 import numpy as np
 import pandas as pd
 import tensorflow as tf 
@@ -50,9 +49,8 @@ class CustomConsoleOutput(Callback):
               f"Val RMSE: {Colors.OKGREEN}{val_rmse:.4f}{Colors.END_RESET} | "
               f"Loss: {Colors.OKGREEN}{loss:.4f}{Colors.END_RESET} | "
               f"LR: {Colors.OKGREEN}{lr:.1e}{Colors.END_RESET}\n")
-
-
-# # LSTM model
+        
+# # # LSTM Model
 
 # # Data Preprocessing
 df = pd.read_csv('NVidia_stock_history.csv')
@@ -101,7 +99,7 @@ else:
     print("\nDataset is up-to-date\n")
 
 # Ensure the DataFrame has a continuous date range
-df = df.asfreq('B')  # 'B' frequency stands for business days
+df = df.asfreq('B')  
 df = df.fillna(method='ffill').fillna(method='bfill')  # Fill missing values
 
 print(df.info(),'\n')
@@ -117,7 +115,7 @@ df_scaled = pd.DataFrame(scaler_values, columns=df.columns, index=df.index)
 
 print('\nNormalized dataset\n')
 print(df_scaled.head(),'\n')
-# print(df_scaled.describe(),'\n')
+print(df_scaled.describe(),'\n')
 
 plt.rcParams['figure.figsize'] = (20,20)
 figure, axes = plt.subplots(6)
@@ -146,7 +144,7 @@ print('\nLSTM model:\n')
 print("Check for Nan Values in Input data:")
 print("Any Nan's in training data: ", np.isnan(X_train).sum())
 print("Any Nan's in target data: ", np.isnan(Y_train).sum())
-# print(df_scaled.isna().sum())
+print(df_scaled.isna().sum())
 
 keras = tf.keras
 model_path = 'model_checkpoint.keras'   
@@ -210,7 +208,7 @@ for train_index, test_index in tscv.split(df_scaled):
     X_train_seq, Y_train_seq = create_sequence(X_train, window_size)
     X_test_seq, Y_test_seq = create_sequence(X_test, window_size)
     
-    # Train the model
+
     lstm_model = model.fit(
         X_train_seq, Y_train_seq,
         validation_data=(X_test_seq, Y_test_seq),
@@ -234,7 +232,7 @@ for train_index, test_index in tscv.split(df_scaled):
     print(comparison_df.head())
 
 model.save(model_path)
-print("Model saved.")
+print("\n\tLSTM Model saved.\n")
 
 # Function to select a random year for predictions
 def get_random_year(df):
@@ -286,7 +284,7 @@ plt.ylabel('Loss')
 plt.legend()
 plt.show()  
     
-# # Plot the results
+# Plot the results
 plt.figure(figsize= (14, 7))
 
 for i, column in enumerate(df_scaled.columns):
