@@ -11,11 +11,11 @@ def scrape_yahoo_nvda_news():
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
     
-    # print(soup.prettify())
-    
+    print(soup.prettify())
+
     news_list = []
-    for item in soup.find_all("div", class_="Ov(h) Pend(44px) Pstart(25px)"):
-        title = item.find("h3")
+    for item in soup.find_all("div", class_="Cf"):
+        title = item.find("h3", class_="Mb(5px)")
         link = item.find("a", href=True)
         
         if title and link:
@@ -23,7 +23,7 @@ def scrape_yahoo_nvda_news():
                 "title": title.text,
                 "link": f"https://finance.yahoo.com{link['href']}"
             })
-
+             
     return news_list
 
 news = scrape_yahoo_nvda_news()
