@@ -132,7 +132,7 @@ def create_sequence(data, window_size):
         Y.append(data.iloc[i].values)
     return np.array(X), np.array(Y)
 
-window_size = 100
+window_size = 120
 X,Y = create_sequence(df_scaled, window_size)
 
 X_train, X_test, Y_train, Y_test = train_test_split(X,Y, test_size = 0.2, random_state = 42)
