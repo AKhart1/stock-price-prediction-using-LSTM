@@ -27,27 +27,6 @@ pip install -r requirements.txt
 4. **Prediction**: Use the trained model to make predictions on new data.
 5. **Visualization**: Plot the results to visualize the performance of the model.
 
-## Project Structure
-
-```
-stock-price-prediction-using-LSTM/
-│
-├── data/
-│   └── stock_prices.csv
-├── models/
-│   └── lstm_model.h5
-├── notebooks/
-│   └── data_preprocessing.ipynb
-│   └── model_training.ipynb
-│   └── prediction.ipynb
-├── scripts/
-│   └── preprocess.py
-│   └── train.py
-│   └── predict.py
-├── requirements.txt
-└── README.md
-```
-
 ## Contributing
 
 Contributions are welcome! Please fork the repository and submit a pull request for any improvements or bug fixes.
